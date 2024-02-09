@@ -304,68 +304,106 @@ def update_graph(primary_var, secondary_var, start_date, end_date, modes):
         )
     )
 
+    fixed_variables = ["EP_Total_HVAC_Power_W", "T_Outdoor_ecobee_F", "VFR_HotTank_WaterDraw_FlowRate_gpm",
+                       "T_HotTank_T2_T3_avg_F"]
+    temperature_variables = ["T_Outdoor_ecobee_F", "T_HotTank_T2_T3_avg_F"]  # Example temperature variables
+    colors = ['blue', 'red', 'green', 'purple']
 
     fig2 = go.Figure()
 
-    yaxes = ['y', 'y2', 'y3', 'y4']
-    colors = ['blue', 'red', 'green', 'purple']
-
-    fixed_variables = ["EP_Total_HVAC_Power_W", "T_Outdoor_ecobee_F", "VFR_HotTank_WaterDraw_FlowRate_gpm",
-                       "T_HotTank_T2_T3_avg_F"]
+    # Initialize a list to keep track of non-temperature variables for correct y-axis labeling
+    non_temperature_variables = []
 
     for i, var in enumerate(fixed_variables):
-        fig2.add_traces(go.Scatter(x=filtered_df['Date'], y=filtered_df[var],
-                                   mode='lines', name=var, yaxis=yaxes[i], line=dict(color=colors[i])))
+        if var in temperature_variables:
+            # Assign temperature variables to the primary y-axis
+            fig2.add_trace(go.Scatter(x=filtered_df['Date'], y=filtered_df[var], mode='lines', name=var,
+                                      line=dict(color=colors[i])))
+        else:
+            # Add non-temperature variable to the list for correct y-axis labeling
+            non_temperature_variables.append(var)
+            yaxis = f'y{len(non_temperature_variables) + 1}'  # Adjust to start from 'y2' for the first non-temperature variable
+            fig2.add_trace(go.Scatter(x=filtered_df['Date'], y=filtered_df[var], mode='lines', name=var,
+                                      line=dict(color=colors[i]), yaxis=yaxis))
 
-    for mode, shapes in all_shapes.items():
-        for shape in shapes:
-            fig2.add_shape(shape)
-
+    # Base y-axis (temperature) configuration
     fig2.update_layout(
-        yaxis=dict(title=fixed_variables[0], side="right", position=.95),
-        yaxis2=dict(title=fixed_variables[1], overlaying='y', side='left', anchor="free", position=.05),
-        yaxis3=dict(title=fixed_variables[2], overlaying='y', side='right', anchor="free", position=1),
-        yaxis4=dict(title=fixed_variables[3], overlaying='y', side='left', anchor="free", position=0.15),
+        yaxis=dict(title="Temperature (F)"),
+    )
+
+    # Dynamically add additional y-axes for non-temperature variables with correct labeling
+    for i, var in enumerate(non_temperature_variables):
+        fig2.update_layout(**{
+            f'yaxis{i + 2}': dict(  # +2 because yaxis starts at 'y' and non-temperature y-axis starts at 'y2'
+                title=var,  # Use the variable name directly for the title
+                overlaying='y',
+                side='right',
+                position= 1 - i * 0.05  # Adjust position to avoid overlap, may need fine-tuning
+            )
+        })
+
+    # Update legend and other layout configurations as needed
+    fig2.update_layout(
         legend=dict(
             orientation='h',
             yanchor='bottom',
-            y=-0.5,  # Negative values to place the legend below the plot
+            y=-0.5,
             xanchor='center',
             x=0.5
         )
     )
+
+    # Assuming the custom_variables list is correctly ordered and includes both temperature and non-temperature variables
+    custom_variables = ["EP_Total_HVAC_Power_W", "T_Outdoor_ecobee_F", "T_CoolSetpoint_F", "T_HeatSetpoint_F",
+                        "T_Thermostat_F"]
+    temperature_variables = ["T_Outdoor_ecobee_F", "T_CoolSetpoint_F", "T_HeatSetpoint_F",
+                             "T_Thermostat_F"]  # Example temperature variables
+    colors = ['blue', 'red', 'green', 'purple', 'orange']
 
     fig3 = go.Figure()
 
-    yaxes = ['y', 'y2', 'y3', 'y4', 'y5', 'y6']
-    colors = ['blue', 'red', 'green', 'purple', 'orange', 'pink']
-
-    custom_variables = ["EP_Total_HVAC_Power_W", "T_Outdoor_ecobee_F", "T_CoolSetpoint_F", "T_HeatSetpoint_F",
-                        "T_Thermostat_F", "T_HeatSetpoint_F"]
+    # Initialize a list to keep track of non-temperature variables for correct y-axis labeling
+    non_temperature_variables = []
 
     for i, var in enumerate(custom_variables):
-        fig3.add_traces(go.Scatter(x=filtered_df['Date'], y=filtered_df[var],
-                                   mode='lines', name=var, yaxis=yaxes[i], line=dict(color=colors[i])))
+        if var in temperature_variables:
+            # Assign temperature variables to the primary y-axis
+            fig3.add_trace(go.Scatter(x=filtered_df['Date'], y=filtered_df[var], mode='lines', name=var,
+                                      line=dict(color=colors[i])))
+        else:
+            # Add non-temperature variable to the list for correct y-axis labeling
+            non_temperature_variables.append(var)
+            yaxis = f'y{len(non_temperature_variables) + 1}'  # Adjust to start from 'y2' for the first non-temperature variable
+            fig3.add_trace(go.Scatter(x=filtered_df['Date'], y=filtered_df[var], mode='lines', name=var,
+                                      line=dict(color=colors[i]), yaxis=yaxis))
 
-    for mode, shapes in all_shapes.items():
-        for shape in shapes:
-            fig3.add_shape(shape)
-
+    # Base y-axis (temperature) configuration
     fig3.update_layout(
-        yaxis=dict(title=custom_variables[0], side='right'),
-        yaxis2=dict(title=custom_variables[1], overlaying='y', side='left', anchor="free", position = 0),
-        yaxis3=dict(title=custom_variables[2], overlaying='y', side='left', anchor="free", position= 0.05),
-        yaxis4=dict(title=custom_variables[3], overlaying='y', side='left', anchor="free", position=0.1),
-        yaxis5=dict(title=custom_variables[4], overlaying='y', side='left', anchor="free", position=0.15),
-        yaxis6=dict(title=custom_variables[5], overlaying='y', side='left', anchor="free", position=0.2),
+        yaxis=dict(title="Temperature (F)"),
+    )
+
+    # Dynamically add additional y-axes for non-temperature variables with correct labeling
+    for i, var in enumerate(non_temperature_variables):
+        fig3.update_layout(**{
+            f'yaxis{i + 2}': dict(  # +2 because yaxis starts at 'y' and non-temperature y-axis starts at 'y2'
+                title=var,  # Use the variable name directly for the title
+                overlaying='y',
+                side='right',
+                position=1  # Adjust position to avoid overlap, may need fine-tuning
+            )
+        })
+
+    # Update legend and other layout configurations as needed
+    fig3.update_layout(
         legend=dict(
             orientation='h',
             yanchor='bottom',
-            y=-0.5,  # Negative values to place the legend below the plot
+            y=-0.5,
             xanchor='center',
             x=0.5
         )
     )
+
     title='Time Series of Custom Variables'
 
     return fig1, fig2, fig3
