@@ -14,6 +14,8 @@ from sklearn.pipeline import make_pipeline
 from tabulate import tabulate
 
 
+git_commit_test = 0
+
 # Load the CSV data
 file_path = "C:/Datasets/WCEC Datasets/WCEC dataspell environment/Test data.csv"
 filepath_2 = "C:/Datasets/WCEC Datasets/WCEC dataspell environment/Villara 3 Function Cycle Data.csv"
