@@ -17,8 +17,8 @@ from tabulate import tabulate
 git_commit_test = 0
 
 # Load the CSV data
-file_path = "C:/Datasets/WCEC Datasets/WCEC dataspell environment/Test data.csv"
-filepath_2 = "C:/Datasets/WCEC Datasets/WCEC dataspell environment/Villara 3 Function Cycle Data.csv"
+file_path = "https://raw.githubusercontent.com/JadenFaste/WCECPlotly/main/Test%20data.csv"
+filepath_2 = "https://raw.githubusercontent.com/JadenFaste/WCECPlotly/main/Villara%203%20Function%20Cycle%20Data.csv"
 df = pd.read_csv(file_path)
 df_2 = pd.read_csv(filepath_2)
 # df_2 =df_2[~df.isin([np.nan, np.inf, -np.inf]).any(1)]
