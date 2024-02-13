@@ -160,15 +160,24 @@ app.layout = html.Div([
 
     # Second Graph
     dcc.Graph(id='fixed-variables-plot'),
-
     # Separator
     html.Hr(),
 
     # Third Graph
     dcc.Graph(id='custom-variables-plot'),
 
+    html.Hr(),  # Separator
+    html.Div([
+        html.Div([dcc.Graph(id='hot-tank-t2-t3-histogram')], style={'width': '500px', 'display': 'inline-block'}),
+        html.Div([dcc.Graph(id='outdoor-ecobee-histogram')], style={'width': '500px', 'display': 'inline-block'}),
+        html.Div([dcc.Graph(id='indoor-temperature-histogram')], style={'width': '500px', 'display': 'inline-block'}),
+        html.Div([dcc.Graph(id='water-draw-histogram')], style={'width': '500px', 'display': 'inline-block'})
+    ], style={'display': 'flex', 'justify-content': 'space-around'}),
+
+
     # Seperator
     html.Hr(),
+
     dcc.Dropdown(
         id='binary-column-selector',
         options=[{'label': col, 'value': col} for col in binary_columns],
@@ -340,7 +349,7 @@ def update_graph(primary_var, secondary_var, start_date, end_date, modes):
                 title=var,  # Use the variable name directly for the title
                 overlaying='y',
                 side='right',
-                position= 1 - i * 0.05  # Adjust position to avoid overlap, may need fine-tuning
+                position= .95 + i * 0.05  # Adjust position to avoid overlap, may need fine-tuning
             )
         })
 
@@ -352,7 +361,8 @@ def update_graph(primary_var, secondary_var, start_date, end_date, modes):
             y=-0.5,
             xanchor='center',
             x=0.5
-        )
+        ),
+    width = 1500,
     )
 
     # Assuming the custom_variables list is correctly ordered and includes both temperature and non-temperature variables
@@ -409,6 +419,97 @@ def update_graph(primary_var, secondary_var, start_date, end_date, modes):
     title='Time Series of Custom Variables'
 
     return fig1, fig2, fig3
+
+
+@app.callback(
+    Output('hot-tank-t2-t3-histogram', 'figure'),
+    [Input('date-picker-range', 'start_date'),  # Assuming you might want to filter by date
+     Input('date-picker-range', 'end_date')]
+)
+def update_histogram(start_date, end_date):
+    # Filter your dataframe based on the date range
+    filtered_df = df[(df['Date'] >= start_date) & (df['Date'] <= end_date)]
+
+    # Generate the histogram
+    fig = px.histogram(filtered_df, x='T_HotTank_T2_T3_avg_F',
+                       title='Histogram of T_HotTank_T2_T3_avg_F',
+                       labels={'T_HotTank_T2_T3_avg_F': 'Temperature'},
+                       )
+
+    # Update layout if needed, e.g., to set a specific size
+    fig.update_layout(height=300, width=500)  # Adjust the height as needed
+
+    return fig
+
+
+@app.callback(
+    Output('outdoor-ecobee-histogram', 'figure'),
+    [Input('date-picker-range', 'start_date'),  # Assuming you might want to filter by date
+     Input('date-picker-range', 'end_date')]
+)
+def update_outdoor_histogram(start_date, end_date):
+    # Filter your dataframe based on the date range
+    filtered_df = df[(df['Date'] >= start_date) & (df['Date'] <= end_date)]
+
+    # Generate the histogram for "T_Outdoor_ecobee_F"
+    fig = px.histogram(filtered_df, x='T_Outdoor_ecobee_F',
+                       title='Histogram of T_Outdoor_ecobee_F',
+                       labels={'T_Outdoor_ecobee_F': 'Outdoor Temperature'},
+                       )
+
+    # Update layout to make the figure with specified width
+    fig.update_layout(
+        width=500,  # Set width
+        height=300,  # Adjust height as needed
+    )
+
+    return fig
+
+@app.callback(
+    Output('indoor-temperature-histogram', 'figure'),
+    [Input('date-picker-range', 'start_date'),  # Assuming you might want to filter by date
+     Input('date-picker-range', 'end_date')]
+)
+def update_outdoor_histogram(start_date, end_date):
+    # Filter your dataframe based on the date range
+    filtered_df = df[(df['Date'] >= start_date) & (df['Date'] <= end_date)]
+
+    # Generate the histogram for "T_Outdoor_ecobee_F"
+    fig = px.histogram(filtered_df, x='T_Thermostat_F',
+                       title='Histogram of T_Thermostat_F',
+                       labels={'T_Thermostat_F': 'indoor Temperature'},
+                       )
+
+    # Update layout to make the figure with specified width
+    fig.update_layout(
+        width=500,  # Set width
+        height=300,  # Adjust height as needed
+    )
+
+    return fig
+
+@app.callback(
+    Output('water-draw-histogram', 'figure'),
+    [Input('date-picker-range', 'start_date'),
+     Input('date-picker-range', 'end_date')]
+)
+def update_outdoor_histogram(start_date, end_date):
+    # Filter your dataframe based on the date range
+    filtered_df = df[(df['Date'] >= start_date) & (df['Date'] <= end_date)]
+
+    # Generate the histogram for "T_Outdoor_ecobee_F"
+    fig = px.histogram(filtered_df, x='VFR_HotTank_WaterDraw_FlowRate_gpm',
+                       title='Histogram of VFR_HotTank_WaterDraw_FlowRate_gpm',
+                       labels={'VFR_HotTank_WaterDraw_FlowRate_gpm': 'flow rate'},
+                       )
+
+    # Update layout to make the figure with specified width
+    fig.update_layout(
+        width=500,  # Set width
+        height=300,  # Adjust height as needed
+    )
+
+    return fig
 
 if __name__ == '__main__':
     app.run_server(debug=True)
