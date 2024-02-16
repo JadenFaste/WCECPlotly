@@ -160,6 +160,7 @@ app.layout = html.Div([
 
     # Second Graph
     dcc.Graph(id='fixed-variables-plot'),
+
     # Separator
     html.Hr(),
 
@@ -168,12 +169,17 @@ app.layout = html.Div([
 
     html.Hr(),  # Separator
     html.Div([
-        html.Div([dcc.Graph(id='hot-tank-t2-t3-histogram')], style={'width': '500px', 'display': 'inline-block'}),
-        html.Div([dcc.Graph(id='outdoor-ecobee-histogram')], style={'width': '500px', 'display': 'inline-block'}),
-        html.Div([dcc.Graph(id='indoor-temperature-histogram')], style={'width': '500px', 'display': 'inline-block'}),
-        html.Div([dcc.Graph(id='water-draw-histogram')], style={'width': '500px', 'display': 'inline-block'})
+        html.Div([dcc.Graph(id='hot-tank-t2-t3-histogram')],
+                 style={'width': '500px', 'display': 'inline-block', 'margin': '0 5px'}),
+        html.Div([dcc.Graph(id='outdoor-ecobee-histogram')],
+                 style={'width': '500px', 'display': 'inline-block', 'margin': '0 5px'}),
+        html.Div([dcc.Graph(id='indoor-temperature-histogram')],
+                 style={'width': '500px', 'display': 'inline-block', 'margin': '0 5px'}),
+        html.Div([dcc.Graph(id='water-draw-histogram')],
+                 style={'width': '500px', 'display': 'inline-block', 'margin': '0 5px'})
     ], style={'display': 'flex', 'justify-content': 'space-around'}),
-
+    html.Div(id='energy-sum-display-fig2', style={'textAlign': 'center', 'margin-top': '20px'}),
+    html.Div(id='water-draw-sum-display-fig2', style={'textAlign': 'center', 'margin-top': '20px'}),
 
     # Seperator
     html.Hr(),
@@ -287,23 +293,25 @@ def update_figure(nFeatures, selected_column):
 @app.callback(
     [Output('line-plot', 'figure'),
      Output('fixed-variables-plot', 'figure'),
-     Output('custom-variables-plot', 'figure')],
+     Output('custom-variables-plot', 'figure'),
+     Output('energy-sum-display-fig2', 'children')],
     [Input('primary-yaxis-column-name', 'value'),
      Input('secondary-yaxis-column-name', 'value'),
      Input('date-picker-range', 'start_date'),
      Input('date-picker-range', 'end_date'),
      Input('mode-selector', 'value')]
 )
+
 def update_graph(primary_var, secondary_var, start_date, end_date, modes):
     filtered_df = df[(df['Date'] >= start_date) & (df['Date'] <= end_date)]
+    all_shapes = get_all_shaded_regions(filtered_df, modes)
 
     fig1 = px.line(filtered_df, x='Date', y=primary_var)
-    fig1.add_traces(go.Scatter(x=filtered_df['Date'], y=filtered_df[secondary_var],
-                               mode='lines', name=secondary_var))
-    all_shapes = get_all_shaded_regions(filtered_df, modes)
+    fig1.add_traces(go.Scatter(x=filtered_df['Date'], y=filtered_df[secondary_var], mode='lines', name=secondary_var))
     for mode, shapes in all_shapes.items():
         for shape in shapes:
             fig1.add_shape(shape)
+
     fig1.update_layout(
         title=f'Time Series of {primary_var} & {secondary_var}',
         legend=dict(
@@ -321,6 +329,12 @@ def update_graph(primary_var, secondary_var, start_date, end_date, modes):
     colors = ['blue', 'red', 'green', 'purple']
 
     fig2 = go.Figure()
+    total_energy_kwh = filtered_df['EE_Total_HVAC_Energy_kWh'].sum()
+    energy_sum_text = f'Total HVAC Energy Consumption: {total_energy_kwh:.2f} kWh'
+
+    for mode, shapes in all_shapes.items():
+        for shape in shapes:
+            fig2.add_shape(shape)
 
     # Initialize a list to keep track of non-temperature variables for correct y-axis labeling
     non_temperature_variables = []
@@ -362,7 +376,6 @@ def update_graph(primary_var, secondary_var, start_date, end_date, modes):
             xanchor='center',
             x=0.5
         ),
-    width = 1500,
     )
 
     # Assuming the custom_variables list is correctly ordered and includes both temperature and non-temperature variables
@@ -373,6 +386,9 @@ def update_graph(primary_var, secondary_var, start_date, end_date, modes):
     colors = ['blue', 'red', 'green', 'purple', 'orange']
 
     fig3 = go.Figure()
+    for mode, shapes in all_shapes.items():
+        for shape in shapes:
+            fig3.add_shape(shape)
 
     # Initialize a list to keep track of non-temperature variables for correct y-axis labeling
     non_temperature_variables = []
@@ -418,7 +434,7 @@ def update_graph(primary_var, secondary_var, start_date, end_date, modes):
 
     title='Time Series of Custom Variables'
 
-    return fig1, fig2, fig3
+    return fig1, fig2, fig3, energy_sum_text
 
 
 @app.callback(
@@ -432,12 +448,12 @@ def update_histogram(start_date, end_date):
 
     # Generate the histogram
     fig = px.histogram(filtered_df, x='T_HotTank_T2_T3_avg_F',
-                       title='Histogram of T_HotTank_T2_T3_avg_F',
+                       title='T_HotTank_T2_T3_avg_F',
                        labels={'T_HotTank_T2_T3_avg_F': 'Temperature'},
                        )
 
     # Update layout if needed, e.g., to set a specific size
-    fig.update_layout(height=300, width=500)  # Adjust the height as needed
+    fig.update_layout(height=300, width=400)  # Adjust the height as needed
 
     return fig
 
@@ -453,13 +469,13 @@ def update_outdoor_histogram(start_date, end_date):
 
     # Generate the histogram for "T_Outdoor_ecobee_F"
     fig = px.histogram(filtered_df, x='T_Outdoor_ecobee_F',
-                       title='Histogram of T_Outdoor_ecobee_F',
+                       title='T_Outdoor_ecobee_F',
                        labels={'T_Outdoor_ecobee_F': 'Outdoor Temperature'},
                        )
 
     # Update layout to make the figure with specified width
     fig.update_layout(
-        width=500,  # Set width
+        width=400,  # Set width
         height=300,  # Adjust height as needed
     )
 
@@ -476,14 +492,14 @@ def update_outdoor_histogram(start_date, end_date):
 
     # Generate the histogram for "T_Outdoor_ecobee_F"
     fig = px.histogram(filtered_df, x='T_Thermostat_F',
-                       title='Histogram of T_Thermostat_F',
+                       title='T_Thermostat_F',
                        labels={'T_Thermostat_F': 'indoor Temperature'},
                        )
 
     # Update layout to make the figure with specified width
     fig.update_layout(
-        width=500,  # Set width
-        height=300,  # Adjust height as needed
+        width=400,  # Set width
+        height=300,
     )
 
     return fig
@@ -499,14 +515,15 @@ def update_outdoor_histogram(start_date, end_date):
 
     # Generate the histogram for "T_Outdoor_ecobee_F"
     fig = px.histogram(filtered_df, x='VFR_HotTank_WaterDraw_FlowRate_gpm',
-                       title='Histogram of VFR_HotTank_WaterDraw_FlowRate_gpm',
+                       title='VFR_HotTank_WaterDraw_FlowRate_gpm',
                        labels={'VFR_HotTank_WaterDraw_FlowRate_gpm': 'flow rate'},
                        )
 
     # Update layout to make the figure with specified width
     fig.update_layout(
-        width=500,  # Set width
+        width=400,  # Set width
         height=300,  # Adjust height as needed
+
     )
 
     return fig
