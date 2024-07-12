@@ -11,27 +11,12 @@ import statsmodels.api as sm
 from sklearn.preprocessing import PolynomialFeatures
 from sklearn.linear_model import LinearRegression
 from sklearn.pipeline import make_pipeline
-from tabulate import tabulate
-
-
-git_commit_test = 0
 
 # Load the CSV data
 file_path = "https://raw.githubusercontent.com/JadenFaste/WCECPlotly/main/Test%20data.csv"
 filepath_2 = "https://raw.githubusercontent.com/JadenFaste/WCECPlotly/main/Villara%203%20Function%20Cycle%20Data.csv"
 df = pd.read_csv(file_path)
 df_2 = pd.read_csv(filepath_2)
-# df_2 =df_2[~df.isin([np.nan, np.inf, -np.inf]).any(1)]
-
-# Declare variables for regression
-x = df_2["T_Outdoor_ecobee_F"]
-y = df_2["COP"]
-x = pd.to_numeric(x, errors='coerce')
-y = pd.to_numeric(y, errors='coerce')
-x = np.nan_to_num(x, nan=0, posinf=0, neginf = 0)
-y = np.nan_to_num(y, nan=0, posinf = 0, neginf = 0)
-
-binary_columns = ['AC_Mode', 'AC_and_DHW_Mode', 'Space_Heat_Mode', 'Water_Heating_Mode', 'Defrost_Mode']
 
 # Convert the 'Date' column to datetime
 df['Date'] = pd.to_datetime(df['Date'], format='%m/%d/%Y %H:%M')
@@ -42,6 +27,7 @@ df['T_HotTank_T2_T3_avg_F'] = (df['T_HotTank_T2_F'] + df['T_HotTank_T3_F']) / 2
 # Variables available for plotting (excluding the Date column for the dropdown)
 available_variables = df.columns.drop('Date')
 
+binary_columns = ['AC_Mode', 'AC_and_DHW_Mode', 'Space_Heat_Mode', 'Water_Heating_Mode', 'Defrost_Mode']
 
 mode_colors = {
     'Controller_AC_and_DHW_Mode': 'LightSkyBlue',
@@ -49,6 +35,7 @@ mode_colors = {
     'Controller_Space_Heat_Mode': 'LightGreen',
     'Controller_Water_Heating_Mode': 'LightSalmon'
 }
+
 def get_all_shaded_regions(df, columns):
     """Get shaded regions for all columns."""
     all_shapes = {}
@@ -72,7 +59,7 @@ def get_all_shaded_regions(df, columns):
                         y0=0,
                         x1=end_date,
                         y1=1,
-                        fillcolor=mode_colors[col],  # Use the color from our dictionary
+                        fillcolor=mode_colors[col],
                         opacity=0.5,
                         layer="below",
                         line_width=0,
@@ -88,7 +75,7 @@ def get_all_shaded_regions(df, columns):
                     y0=0,
                     x1=df['Date'].iloc[-1],
                     y1=1,
-                    fillcolor=mode_colors[col],  # Use the color from our dictionary
+                    fillcolor=mode_colors[col],
                     opacity=0.5,
                     layer="below",
                     line_width=0,
@@ -99,6 +86,7 @@ def get_all_shaded_regions(df, columns):
 
 # Create the Dash app
 app = dash.Dash(__name__)
+
 # Define the layout
 app.layout = html.Div([
     html.H1("Time Series Dashboard"),
@@ -152,6 +140,7 @@ app.layout = html.Div([
 
     # Graph for displaying the line chart
     dcc.Graph(id='line-plot'),
+    html.Div(id='line-plot-missing-data'),
 
     html.Div(id='equation'),  # Div to display the equation
 
@@ -160,12 +149,14 @@ app.layout = html.Div([
 
     # Second Graph
     dcc.Graph(id='fixed-variables-plot'),
+    html.Div(id='fixed-variables-missing-data'),
 
     # Separator
     html.Hr(),
 
     # Third Graph
     dcc.Graph(id='custom-variables-plot'),
+    html.Div(id='custom-variables-missing-data'),
 
     html.Hr(),  # Separator
     html.Div([
@@ -181,7 +172,7 @@ app.layout = html.Div([
     html.Div(id='energy-sum-display-fig2', style={'textAlign': 'center', 'margin-top': '20px'}),
     html.Div(id='water-draw-sum-display-fig2', style={'textAlign': 'center', 'margin-top': '20px'}),
 
-    # Seperator
+    # Separator
     html.Hr(),
 
     dcc.Dropdown(
@@ -201,7 +192,6 @@ app.layout = html.Div([
                    marks={i: '{}'.format(i) for i in range(10)},
                    value=1,
                    )
-
     ]),
     html.Div(id='equation')  # Div to display the equation
 ])
@@ -269,16 +259,13 @@ def update_figure(nFeatures, selected_column):
         f"Regression Equation: {equation}\n"
         f"Spearman's Correlation: {spearman_corr:.4f}\n"
         f"AIC: {aic:.2f}, BIC: {bic:.2f}"
-
-
     )
+
     # Create the figure
     fig = go.Figure()
     fig.add_traces(go.Scatter(x=x_filtered, y=y_filtered, mode='markers', name='observations'))
     reg_df = reg_df.sort_values(by=['x'])
-    # fig.add_traces(go.Scatter(x=reg_df['x'], y=reg_df['model'], mode='lines', name='model'))
     fig.add_traces(go.Scatter(x=reg_df['x'], y=reg_df['model'], mode='lines', name='model'))
-
 
     fig.update_layout(
         title="Polynomial Regression Analysis",
@@ -289,19 +276,20 @@ def update_figure(nFeatures, selected_column):
     # Return the figure and the regression equation
     return fig, equation_and_metrics
 
-#####################
 @app.callback(
     [Output('line-plot', 'figure'),
      Output('fixed-variables-plot', 'figure'),
      Output('custom-variables-plot', 'figure'),
-     Output('energy-sum-display-fig2', 'children')],
+     Output('energy-sum-display-fig2', 'children'),
+     Output('line-plot-missing-data', 'children'),
+     Output('fixed-variables-missing-data', 'children'),
+     Output('custom-variables-missing-data', 'children')],
     [Input('primary-yaxis-column-name', 'value'),
      Input('secondary-yaxis-column-name', 'value'),
      Input('date-picker-range', 'start_date'),
      Input('date-picker-range', 'end_date'),
      Input('mode-selector', 'value')]
 )
-
 def update_graph(primary_var, secondary_var, start_date, end_date, modes):
     filtered_df = df[(df['Date'] >= start_date) & (df['Date'] <= end_date)]
     all_shapes = get_all_shaded_regions(filtered_df, modes)
@@ -315,17 +303,17 @@ def update_graph(primary_var, secondary_var, start_date, end_date, modes):
     fig1.update_layout(
         title=f'Time Series of {primary_var} & {secondary_var}',
         legend=dict(
-            orientation='h',  # Horizontal orientation
-            yanchor='bottom',  # Anchor legend to the bottom
-            y=-0.5,  # Position legend below the x-axis
-            xanchor='center',  # Center the legend horizontally
-            x=0.5  # Position the center of the legend in the middle of the plot
+            orientation='h',
+            yanchor='bottom',
+            y=-0.5,
+            xanchor='center',
+            x=0.5
         )
     )
 
     fixed_variables = ["EP_Total_HVAC_Power_W", "T_Outdoor_ecobee_F", "VFR_HotTank_WaterDraw_FlowRate_gpm",
                        "T_HotTank_T2_T3_avg_F"]
-    temperature_variables = ["T_Outdoor_ecobee_F", "T_HotTank_T2_T3_avg_F"]  # Example temperature variables
+    temperature_variables = ["T_Outdoor_ecobee_F", "T_HotTank_T2_T3_avg_F"]
     colors = ['blue', 'red', 'green', 'purple']
 
     fig2 = go.Figure()
@@ -336,38 +324,30 @@ def update_graph(primary_var, secondary_var, start_date, end_date, modes):
         for shape in shapes:
             fig2.add_shape(shape)
 
-    # Initialize a list to keep track of non-temperature variables for correct y-axis labeling
     non_temperature_variables = []
-
     for i, var in enumerate(fixed_variables):
         if var in temperature_variables:
-            # Assign temperature variables to the primary y-axis
             fig2.add_trace(go.Scatter(x=filtered_df['Date'], y=filtered_df[var], mode='lines', name=var,
                                       line=dict(color=colors[i])))
         else:
-            # Add non-temperature variable to the list for correct y-axis labeling
             non_temperature_variables.append(var)
-            yaxis = f'y{len(non_temperature_variables) + 1}'  # Adjust to start from 'y2' for the first non-temperature variable
+            yaxis = f'y{len(non_temperature_variables) + 1}'
             fig2.add_trace(go.Scatter(x=filtered_df['Date'], y=filtered_df[var], mode='lines', name=var,
                                       line=dict(color=colors[i]), yaxis=yaxis))
 
-    # Base y-axis (temperature) configuration
     fig2.update_layout(
         yaxis=dict(title="Temperature (F)"),
     )
-
-    # Dynamically add additional y-axes for non-temperature variables with correct labeling
     for i, var in enumerate(non_temperature_variables):
         fig2.update_layout(**{
-            f'yaxis{i + 2}': dict(  # +2 because yaxis starts at 'y' and non-temperature y-axis starts at 'y2'
-                title=var,  # Use the variable name directly for the title
+            f'yaxis{i + 2}': dict(
+                title=var,
                 overlaying='y',
                 side='right',
-                position= .95 + i * 0.05  # Adjust position to avoid overlap, may need fine-tuning
+                position=.95 + i * 0.05
             )
         })
 
-    # Update legend and other layout configurations as needed
     fig2.update_layout(
         legend=dict(
             orientation='h',
@@ -378,11 +358,9 @@ def update_graph(primary_var, secondary_var, start_date, end_date, modes):
         ),
     )
 
-    # Assuming the custom_variables list is correctly ordered and includes both temperature and non-temperature variables
     custom_variables = ["EP_Total_HVAC_Power_W", "T_Outdoor_ecobee_F", "T_CoolSetpoint_F", "T_HeatSetpoint_F",
                         "T_Thermostat_F"]
-    temperature_variables = ["T_Outdoor_ecobee_F", "T_CoolSetpoint_F", "T_HeatSetpoint_F",
-                             "T_Thermostat_F"]  # Example temperature variables
+    temperature_variables = ["T_Outdoor_ecobee_F", "T_CoolSetpoint_F", "T_HeatSetpoint_F", "T_Thermostat_F"]
     colors = ['blue', 'red', 'green', 'purple', 'orange']
 
     fig3 = go.Figure()
@@ -390,38 +368,30 @@ def update_graph(primary_var, secondary_var, start_date, end_date, modes):
         for shape in shapes:
             fig3.add_shape(shape)
 
-    # Initialize a list to keep track of non-temperature variables for correct y-axis labeling
     non_temperature_variables = []
-
     for i, var in enumerate(custom_variables):
         if var in temperature_variables:
-            # Assign temperature variables to the primary y-axis
             fig3.add_trace(go.Scatter(x=filtered_df['Date'], y=filtered_df[var], mode='lines', name=var,
                                       line=dict(color=colors[i])))
         else:
-            # Add non-temperature variable to the list for correct y-axis labeling
             non_temperature_variables.append(var)
-            yaxis = f'y{len(non_temperature_variables) + 1}'  # Adjust to start from 'y2' for the first non-temperature variable
+            yaxis = f'y{len(non_temperature_variables) + 1}'
             fig3.add_trace(go.Scatter(x=filtered_df['Date'], y=filtered_df[var], mode='lines', name=var,
                                       line=dict(color=colors[i]), yaxis=yaxis))
 
-    # Base y-axis (temperature) configuration
     fig3.update_layout(
         yaxis=dict(title="Temperature (F)"),
     )
-
-    # Dynamically add additional y-axes for non-temperature variables with correct labeling
     for i, var in enumerate(non_temperature_variables):
         fig3.update_layout(**{
-            f'yaxis{i + 2}': dict(  # +2 because yaxis starts at 'y' and non-temperature y-axis starts at 'y2'
-                title=var,  # Use the variable name directly for the title
+            f'yaxis{i + 2}': dict(
+                title=var,
                 overlaying='y',
                 side='right',
-                position=1  # Adjust position to avoid overlap, may need fine-tuning
+                position=1
             )
         })
 
-    # Update legend and other layout configurations as needed
     fig3.update_layout(
         legend=dict(
             orientation='h',
@@ -434,74 +404,53 @@ def update_graph(primary_var, secondary_var, start_date, end_date, modes):
 
     title='Time Series of Custom Variables'
 
-    return fig1, fig2, fig3, energy_sum_text
+    def count_missing_values(df, column):
+        return df[column].isna().sum()
 
+    primary_missing_data = f"Missing data in {primary_var}: {count_missing_values(filtered_df, primary_var)}"
+    secondary_missing_data = f"Missing data in {secondary_var}: {count_missing_values(filtered_df, secondary_var)}"
+    fixed_missing_data = ", ".join([f"{var}: {count_missing_values(filtered_df, var)}" for var in fixed_variables])
+    custom_missing_data = ", ".join([f"{var}: {count_missing_values(filtered_df, var)}" for var in custom_variables])
+
+    return fig1, fig2, fig3, energy_sum_text, primary_missing_data + "; " + secondary_missing_data, fixed_missing_data, custom_missing_data
 
 @app.callback(
     Output('hot-tank-t2-t3-histogram', 'figure'),
-    [Input('date-picker-range', 'start_date'),  # Assuming you might want to filter by date
+    [Input('date-picker-range', 'start_date'),
      Input('date-picker-range', 'end_date')]
 )
 def update_histogram(start_date, end_date):
-    # Filter your dataframe based on the date range
     filtered_df = df[(df['Date'] >= start_date) & (df['Date'] <= end_date)]
-
-    # Generate the histogram
     fig = px.histogram(filtered_df, x='T_HotTank_T2_T3_avg_F',
                        title='T_HotTank_T2_T3_avg_F',
-                       labels={'T_HotTank_T2_T3_avg_F': 'Temperature'},
-                       )
-
-    # Update layout if needed, e.g., to set a specific size
-    fig.update_layout(height=300, width=400)  # Adjust the height as needed
-
+                       labels={'T_HotTank_T2_T3_avg_F': 'Temperature'})
+    fig.update_layout(height=300, width=400)
     return fig
-
 
 @app.callback(
     Output('outdoor-ecobee-histogram', 'figure'),
-    [Input('date-picker-range', 'start_date'),  # Assuming you might want to filter by date
+    [Input('date-picker-range', 'start_date'),
      Input('date-picker-range', 'end_date')]
 )
 def update_outdoor_histogram(start_date, end_date):
-    # Filter your dataframe based on the date range
     filtered_df = df[(df['Date'] >= start_date) & (df['Date'] <= end_date)]
-
-    # Generate the histogram for "T_Outdoor_ecobee_F"
     fig = px.histogram(filtered_df, x='T_Outdoor_ecobee_F',
                        title='T_Outdoor_ecobee_F',
-                       labels={'T_Outdoor_ecobee_F': 'Outdoor Temperature'},
-                       )
-
-    # Update layout to make the figure with specified width
-    fig.update_layout(
-        width=400,  # Set width
-        height=300,  # Adjust height as needed
-    )
-
+                       labels={'T_Outdoor_ecobee_F': 'Outdoor Temperature'})
+    fig.update_layout(width=400, height=300)
     return fig
 
 @app.callback(
     Output('indoor-temperature-histogram', 'figure'),
-    [Input('date-picker-range', 'start_date'),  # Assuming you might want to filter by date
+    [Input('date-picker-range', 'start_date'),
      Input('date-picker-range', 'end_date')]
 )
-def update_outdoor_histogram(start_date, end_date):
-    # Filter your dataframe based on the date range
+def update_indoor_histogram(start_date, end_date):
     filtered_df = df[(df['Date'] >= start_date) & (df['Date'] <= end_date)]
-
-    # Generate the histogram for "T_Outdoor_ecobee_F"
     fig = px.histogram(filtered_df, x='T_Thermostat_F',
                        title='T_Thermostat_F',
-                       labels={'T_Thermostat_F': 'indoor Temperature'},
-                       )
-
-    # Update layout to make the figure with specified width
-    fig.update_layout(
-        width=400,  # Set width
-        height=300,
-    )
-
+                       labels={'T_Thermostat_F': 'Indoor Temperature'})
+    fig.update_layout(width=400, height=300)
     return fig
 
 @app.callback(
@@ -509,23 +458,12 @@ def update_outdoor_histogram(start_date, end_date):
     [Input('date-picker-range', 'start_date'),
      Input('date-picker-range', 'end_date')]
 )
-def update_outdoor_histogram(start_date, end_date):
-    # Filter your dataframe based on the date range
+def update_water_draw_histogram(start_date, end_date):
     filtered_df = df[(df['Date'] >= start_date) & (df['Date'] <= end_date)]
-
-    # Generate the histogram for "T_Outdoor_ecobee_F"
     fig = px.histogram(filtered_df, x='VFR_HotTank_WaterDraw_FlowRate_gpm',
                        title='VFR_HotTank_WaterDraw_FlowRate_gpm',
-                       labels={'VFR_HotTank_WaterDraw_FlowRate_gpm': 'flow rate'},
-                       )
-
-    # Update layout to make the figure with specified width
-    fig.update_layout(
-        width=400,  # Set width
-        height=300,  # Adjust height as needed
-
-    )
-
+                       labels={'VFR_HotTank_WaterDraw_FlowRate_gpm': 'Flow Rate'})
+    fig.update_layout(width=400, height=300)
     return fig
 
 if __name__ == '__main__':
