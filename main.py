@@ -11,6 +11,7 @@ import statsmodels.api as sm
 from sklearn.preprocessing import PolynomialFeatures
 from sklearn.linear_model import LinearRegression
 from sklearn.pipeline import make_pipeline
+from datetime import datetime
 
 # Load the CSV data
 file_path = "https://raw.githubusercontent.com/JadenFaste/WCECPlotly/main/Test%20data.csv"
@@ -83,6 +84,49 @@ def get_all_shaded_regions(df, columns):
             )
         all_shapes[col] = shapes
     return all_shapes
+
+# Create Gantt chart
+tasks = pd.DataFrame({
+    'Task': [
+        'Baseline Tango 1', 'Static Summer Price Signal Tango', 'Baseline Tango 2 (Away from home) ?', 'Static Summer Price & GHG Signal Tango (Away from home) ?', 'Baseline Tango 3', '2 Week moving price signal Tango', 'Baseline Tango 4',
+        'Baseline Apt C 1', 'Static Summer Price Signal Apt C', 'Baseline Apt C 2', 'Static Summer Price & GHG Signal Apt C', 'Baseline C Apt 3', '2 Week moving price signal Apt C', 'Baseline Apt C 4', 
+        'Baseline Apt D 1', 'Static Summer Price Signal Apt D', 'Baseline Apt D 1', 'Static Summer Price & GHG Signal Apt D', 'Baseline Apt D 3', '2 Week moving price signal Apt D',
+        'Test 1', 'Test 2', 'Test 3', 'Test 4'
+    ],
+    'Start': [
+        pd.Timestamp('2024-07-24'), pd.Timestamp('2024-07-31'), pd.Timestamp('2024-08-07'), pd.Timestamp('2024-08-14'), pd.Timestamp('2024-08-29'), pd.Timestamp('2024-09-05'), pd.Timestamp('2024-09-19'),
+        pd.Timestamp('2024-07-24'), pd.Timestamp('2024-07-31'), pd.Timestamp('2024-08-07'), pd.Timestamp('2024-08-13'), pd.Timestamp('2024-08-26'), pd.Timestamp('2024-09-02'), pd.Timestamp('2024-09-16'),
+        pd.NaT, pd.NaT, pd.NaT, pd.NaT, pd.NaT, pd.NaT,
+        pd.Timestamp('2024-06-12'), pd.Timestamp('2024-06-12'), pd.Timestamp('2024-06-12'), pd.Timestamp('2024-06-12')
+    ],
+    'End': [
+        pd.Timestamp('2024-07-30'), pd.Timestamp('2024-08-06'), pd.Timestamp('2024-08-13'), pd.Timestamp('2024-08-20'), pd.Timestamp('2024-09-04'), pd.Timestamp('2024-09-18'), pd.Timestamp('2024-09-25'),
+        pd.Timestamp('2024-07-30'), pd.Timestamp('2024-08-06'), pd.Timestamp('2024-08-13'), pd.Timestamp('2024-08-20'), pd.Timestamp('2024-09-01'), pd.Timestamp('2024-09-15'), pd.Timestamp('2024-09-22'),
+        pd.NaT, pd.NaT, pd.NaT, pd.NaT, pd.NaT, pd.NaT,
+        pd.Timestamp('2024-06-15'), pd.Timestamp('2024-06-15'), pd.Timestamp('2024-06-15'), pd.Timestamp('2024-06-15')
+    ],
+    'Group': [
+        'WCEC Tango Site', 'WCEC Tango Site', 'WCEC Tango Site', 'WCEC Tango Site', 'WCEC Tango Site', 'WCEC Tango Site', 'WCEC Tango Site',
+        'WCEC Bear Creek Apt C', 'WCEC Bear Creek Apt C', 'WCEC Bear Creek Apt C', 'WCEC Bear Creek Apt C', 'WCEC Bear Creek Apt C', 'WCEC Bear Creek Apt C', 'WCEC Bear Creek Apt C',
+        'WCEC Bear Creek Apt D', 'WCEC Bear Creek Apt D', 'WCEC Bear Creek Apt D', 'WCEC Bear Creek Apt D', 'WCEC Bear Creek Apt D', 'WCEC Bear Creek Apt D',
+        'Other Tests', 'Other Tests', 'Other Tests', 'Other Tests'
+    ]
+})
+
+fig_gantt = px.timeline(tasks, x_start="Start", x_end="End", y="Task", color="Group")
+
+fig_gantt.update_yaxes(categoryorder="array", categoryarray=tasks['Task'].tolist())
+
+current_date = datetime.now().strftime('%Y-%m-%d')
+fig_gantt.add_vline(x=current_date, line_width=3, line_dash="dash", line_color="red")
+
+fig_gantt.update_layout(
+    title="Project Timeline", 
+    xaxis_title="Date", 
+    yaxis_title="Task",
+    width=2400,
+    height=800
+)
 
 # Create the Dash app
 app = dash.Dash(__name__)
@@ -193,7 +237,10 @@ app.layout = html.Div([
                    value=1,
                    )
     ]),
-    html.Div(id='equation')  # Div to display the equation
+    html.Div(id='equation'),
+
+    html.Hr(),
+    dcc.Graph(id='gantt-chart', figure=fig_gantt)
 ])
 
 @app.callback(
