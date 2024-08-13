@@ -144,7 +144,8 @@ app.layout = html.Div([
 
     html.Div(id='equation'),  # Div to display the equation
 
-    # Separator 
+    # Separator
+    html.Hr(),
 
     # Second Graph
     dcc.Graph(id='fixed-variables-plot'),
