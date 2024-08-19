@@ -160,8 +160,8 @@ app.layout = html.Div([
         html.Label("Select Date Range:"),
         dcc.DatePickerRange(
             id='date-picker-range',
-            start_date=df['Date'].min(),
-            end_date=df['Date'].max(),
+            start_date='2023-05-28',  # Corrected format
+            end_date='2023-05-29',
             display_format='MM/DD/YYYY'
         )
     ], style={'margin-top': '20px', 'margin-bottom': '20px'}),
@@ -182,11 +182,9 @@ app.layout = html.Div([
         ),
     ], style={'margin-top': '20px', 'margin-bottom': '20px'}),
 
-    # Graph for displaying the line chart
+    # line chart
     dcc.Graph(id='line-plot'),
     html.Div(id='line-plot-missing-data'),
-
-    html.Div(id='equation'),  # Div to display the equation
 
     # Separator
     html.Hr(),
