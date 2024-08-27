@@ -4,7 +4,7 @@ file_path = "https://raw.githubusercontent.com/JadenFaste/WCECPlotly/main/Test%2
 df = pd.read_csv(file_path)
 
 heating_column = 'TP_Capacity_Heating_Btuh'
-cooling_column = 'TE_Capacity_Cooling_Btu'
+cooling_column = 'TE_Capacity_Heating_Btu'
 
 # Filter the rows where 'TP_Capacity_Heating_Btuh' is NaN and 'TE_Capacity_Cooling_Btu' is not 0
 missing_heating_with_nonzero_cooling = df[(df[heating_column].isna()) & (df[cooling_column] != 0)]

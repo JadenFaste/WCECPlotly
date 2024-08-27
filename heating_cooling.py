@@ -456,9 +456,10 @@ def update_graph(primary_var, secondary_var, start_date, end_date, modes):
     )
 
     # Create the fourth plot with the specified custom variables
-    custom_variables_fig4 = ["EP_Total_HVAC_Power_W", "T_Outdoor_ecobee_F", "T_HeatSetpoint_F", "T_Thermostat_F"]
+    custom_variables_fig4 = ["EP_Total_HVAC_Power_W", "T_Outdoor_ecobee_F", "T_HeatSetpoint_F", "T_Thermostat_F", "TP_Capacity_Heating_Btuh"]
     temperature_variables_fig4 = ["T_Outdoor_ecobee_F", "T_HeatSetpoint_F", "T_Thermostat_F"]
-    colors_fig4 = ['blue', 'red', 'green', 'purple']
+    colors_fig4 = ['blue', 'red', 'green', 'orange', 'purple']
+    df['TP_Capacity_Heating_Btuh'] = df['TP_Capacity_Heating_Btuh'].fillna(0)
 
     fig4 = go.Figure()
     for mode, shapes in all_shapes.items():
