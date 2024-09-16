@@ -12,9 +12,16 @@ from sklearn.preprocessing import PolynomialFeatures
 from sklearn.linear_model import LinearRegression
 from sklearn.pipeline import make_pipeline
 from datetime import datetime
+import os
+
+cwd = os.getcwd()
+print(cwd)
+path = r'C:\Users\bober\OneDrive\Documents\GitHub\WCECPlotly'
+os.chdir(path)
 
 # Load the CSV data
-file_path = "https://raw.githubusercontent.com/JadenFaste/WCECPlotly/main/Test%20data.csv"
+# file_path = "https://raw.githubusercontent.com/JadenFaste/WCECPlotly/main/Test%20data.csv"
+file_path = "test_data_updated.csv"
 filepath_2 = "https://raw.githubusercontent.com/JadenFaste/WCECPlotly/main/Villara%203%20Function%20Cycle%20Data.csv"
 df = pd.read_csv(file_path)
 df_2 = pd.read_csv(filepath_2)
@@ -160,8 +167,8 @@ app.layout = html.Div([
         html.Label("Select Date Range:"),
         dcc.DatePickerRange(
             id='date-picker-range',
-            start_date='2023-05-28',  # Corrected format
-            end_date='2023-05-29',
+            start_date='2024-08-17',  
+            end_date='2024-08-18',
             display_format='MM/DD/YYYY'
         )
     ], style={'margin-top': '20px', 'margin-bottom': '20px'}),

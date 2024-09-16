@@ -16,13 +16,19 @@ from sklearn.preprocessing import PolynomialFeatures
 from sklearn.linear_model import LinearRegression
 from sklearn.pipeline import make_pipeline
 from datetime import datetime
+import os
+
+cwd = os.getcwd()
+print(cwd)
+path = r'C:\Users\bober\OneDrive\Documents\GitHub\WCECPlotly'
+os.chdir(path)
 
 # Load the CSV data
-file_path = "https://raw.githubusercontent.com/JadenFaste/WCECPlotly/main/Test%20data.csv"
+# file_path = "https://raw.githubusercontent.com/JadenFaste/WCECPlotly/main/Test%20data.csv"
+file_path = "test_data_updated.csv"
 filepath_2 = "https://raw.githubusercontent.com/JadenFaste/WCECPlotly/main/Villara%203%20Function%20Cycle%20Data.csv"
 df = pd.read_csv(file_path)
 df_2 = pd.read_csv(filepath_2)
-
 # Convert the 'Date' column to datetime
 df['Date'] = pd.to_datetime(df['Date'], format='%m/%d/%Y %H:%M')
 
@@ -164,8 +170,8 @@ app.layout = html.Div([
         html.Label("Select Date Range:"),
         dcc.DatePickerRange(
             id='date-picker-range',
-            start_date='2023-05-28',  # Corrected format
-            end_date='2023-05-29',
+            start_date='2024-08-17',  
+            end_date='2024-08-18',
             display_format='MM/DD/YYYY'
         )
     ], style={'margin-top': '20px', 'margin-bottom': '20px'}),
@@ -411,10 +417,10 @@ def update_graph(primary_var, secondary_var, start_date, end_date, modes):
         ),
     )
 
-    custom_variables = ["EP_Total_HVAC_Power_W", "T_Outdoor_ecobee_F", "T_CoolSetpoint_F", "T_HeatSetpoint_F",
-                        "T_Thermostat_F"]
-    temperature_variables = ["T_Outdoor_ecobee_F", "T_CoolSetpoint_F", "T_HeatSetpoint_F", "T_Thermostat_F"]
-    colors = ['blue', 'red', 'green', 'purple', 'orange']
+    custom_variables = ["EP_Total_HVAC_Power_W", "T_Outdoor_ecobee_F", "T_CoolSetpoint_F", "T_Thermostat_F", "TP_Capacity_Cooling_Btuh"]
+    temperature_variables = ["T_Outdoor_ecobee_F", "T_HeatSetpoint_F", "T_Thermostat_F"]
+    colors = ['blue', 'red', 'green', 'orange', 'purple']
+    df['TP_Capacity_Cooling_Btuh'] = df['TP_Capacity_Cooling_Btuh'].fillna(df['TE_Capacity_Cooling_Btu'] * 12)
 
     fig3 = go.Figure()
     for mode, shapes in all_shapes.items():
