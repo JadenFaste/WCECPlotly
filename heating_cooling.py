@@ -29,11 +29,26 @@ file_path = "test_data_updated.csv"
 filepath_2 = "https://raw.githubusercontent.com/JadenFaste/WCECPlotly/main/Villara%203%20Function%20Cycle%20Data.csv"
 df = pd.read_csv(file_path)
 df_2 = pd.read_csv(filepath_2)
+data = pd.read_csv('cycle_data_updated.csv')
+
 # Convert the 'Date' column to datetime
 df['Date'] = pd.to_datetime(df['Date'], format='%m/%d/%Y %H:%M')
 
 # Avg of t2 and t3
 df['T_HotTank_T2_T3_avg_F'] = (df['T_HotTank_T2_F'] + df['T_HotTank_T3_F']) / 2
+
+# Convert 'idx_Mid_Cycle' to datetime
+data['idx_Mid_Cycle'] = pd.to_datetime(data['idx_Mid_Cycle'], errors='coerce')
+data['Year'] = data['idx_Mid_Cycle'].dt.year
+
+# Filter cycle data
+filtered_df = data[(data['AC_Mode'] == 1) & (data['AC_and_DHW_Mode'] == 0) & (data['COP_Steady_State'] > 0.2)]
+
+# Convert 'Year' to string to ensure it is treated as a categorical variable
+filtered_df['Year'] = filtered_df['Year'].astype(str)
+
+# Filter necessary columns and drop NaN
+filtered_df = filtered_df[['T_Outdoor_ecobee_F', 'COP_Steady_State', 'idx_Mid_Cycle', 'Year']].dropna()
 
 # Variables available for plotting (excluding the Date column for the dropdown)
 available_variables = df.columns.drop('Date')
@@ -250,8 +265,10 @@ app.layout = html.Div([
     html.Div(id='equation'),
 
     html.Hr(),
-    dcc.Graph(id='gantt-chart', figure=fig_gantt)
-
+    dcc.Graph(id='gantt-chart', figure=fig_gantt),
+    
+    html.Hr(),
+    dcc.Graph(id='scatter-plot')
 ])
 
 @app.callback(
@@ -350,7 +367,24 @@ def update_figure(nFeatures, selected_column):
      Input('mode-selector', 'value')]
 )
 def update_graph(primary_var, secondary_var, start_date, end_date, modes):
-    filtered_df = df[(df['Date'] >= start_date) & (df['Date'] <= end_date)]
+    # Filter the dataframe based on the selected date range
+    filtered_df = df[(df['Date'] >= start_date) & (df['Date'] <= end_date)].copy()
+
+    # Ensure the relevant columns are numeric
+    filtered_df['TP_Capacity_Cooling_Btuh'] = pd.to_numeric(filtered_df['TP_Capacity_Cooling_Btuh'], errors='coerce')
+    filtered_df['TE_Capacity_Cooling_Btu'] = pd.to_numeric(filtered_df['TE_Capacity_Cooling_Btu'], errors='coerce')
+
+    # Handle missing TP_Capacity_Cooling_Btuh values
+    # Create a mask for rows where TP_Capacity_Cooling_Btuh is NaN
+    mask = filtered_df['TP_Capacity_Cooling_Btuh'].isna()
+
+    # Apply the conditional logic using np.where
+    filtered_df.loc[mask, 'TP_Capacity_Cooling_Btuh'] = np.where(
+        filtered_df.loc[mask, 'TE_Capacity_Cooling_Btu'] == 0,
+        0,
+        filtered_df.loc[mask, 'TE_Capacity_Cooling_Btu'] * 12
+    )
+
     all_shapes = get_all_shaded_regions(filtered_df, modes)
 
     fig1 = px.line(filtered_df, x='Date', y=primary_var)
@@ -370,6 +404,7 @@ def update_graph(primary_var, secondary_var, start_date, end_date, modes):
         )
     )
 
+    # Figure 2: Fixed Variables Plot (Example)
     fixed_variables = ["EP_Total_HVAC_Power_W", "T_Outdoor_ecobee_F", "VFR_HotTank_WaterDraw_FlowRate_gpm",
                        "T_HotTank_T2_T3_avg_F"]
     temperature_variables = ["T_Outdoor_ecobee_F", "T_HotTank_T2_T3_avg_F"]
@@ -417,39 +452,39 @@ def update_graph(primary_var, secondary_var, start_date, end_date, modes):
         ),
     )
 
+    # Figure 3: Custom Variables Plot (Including TP_Capacity_Cooling_Btuh)
     custom_variables = ["EP_Total_HVAC_Power_W", "T_Outdoor_ecobee_F", "T_CoolSetpoint_F", "T_Thermostat_F", "TP_Capacity_Cooling_Btuh"]
-    temperature_variables = ["T_Outdoor_ecobee_F", "T_HeatSetpoint_F", "T_Thermostat_F"]
-    colors = ['blue', 'red', 'green', 'orange', 'purple']
-    df['TP_Capacity_Cooling_Btuh'] = df['TP_Capacity_Cooling_Btuh'].fillna(df['TE_Capacity_Cooling_Btu'] * 12)
+    temperature_variables_fig3 = ["T_Outdoor_ecobee_F", "T_HeatSetpoint_F", "T_Thermostat_F"]
+    colors_fig3 = ['blue', 'red', 'green', 'orange', 'purple']
 
     fig3 = go.Figure()
     for mode, shapes in all_shapes.items():
         for shape in shapes:
             fig3.add_shape(shape)
 
-    non_temperature_variables = []
+    non_temperature_variables_fig3 = []
     for i, var in enumerate(custom_variables):
-        if var in temperature_variables:
+        if var in temperature_variables_fig3:
             fig3.add_trace(go.Scatter(x=filtered_df['Date'], y=filtered_df[var], mode='lines', name=var,
-                                      line=dict(color=colors[i])))
+                                      line=dict(color=colors_fig3[i])))
         else:
-            non_temperature_variables.append(var)
-            yaxis = f'y{len(non_temperature_variables) + 1}'
+            non_temperature_variables_fig3.append(var)
+            yaxis = f'y{len(non_temperature_variables_fig3) + 1}'
             fig3.add_trace(go.Scatter(x=filtered_df['Date'], y=filtered_df[var], mode='lines', name=var,
-                                      line=dict(color=colors[i]), yaxis=yaxis))
+                                      line=dict(color=colors_fig3[i]), yaxis=yaxis))
 
     fig3.update_layout(
         yaxis=dict(title="Temperature (F)"),
     )
-    for i, var in enumerate(non_temperature_variables):
+    for i, var in enumerate(non_temperature_variables_fig3):
         fig3.update_layout(**{
             f'yaxis{i + 2}': dict(
                 title=var,
                 overlaying='y',
                 side='right',
-                position=1
+                position=.95 - i * 0.05
             )
-        })
+        }) 
 
     fig3.update_layout(
         legend=dict(
@@ -461,11 +496,13 @@ def update_graph(primary_var, secondary_var, start_date, end_date, modes):
         )
     )
 
-    # Create the fourth plot with the specified custom variables
+    # Figure 4: Additional Custom Variables Plot (Example)
     custom_variables_fig4 = ["EP_Total_HVAC_Power_W", "T_Outdoor_ecobee_F", "T_HeatSetpoint_F", "T_Thermostat_F", "TP_Capacity_Heating_Btuh"]
     temperature_variables_fig4 = ["T_Outdoor_ecobee_F", "T_HeatSetpoint_F", "T_Thermostat_F"]
     colors_fig4 = ['blue', 'red', 'green', 'orange', 'purple']
-    df['TP_Capacity_Heating_Btuh'] = df['TP_Capacity_Heating_Btuh'].fillna(0)
+
+    # Handle missing TP_Capacity_Heating_Btuh values by filling NaNs with 0
+    filtered_df['TP_Capacity_Heating_Btuh'] = filtered_df['TP_Capacity_Heating_Btuh'].fillna(0)
 
     fig4 = go.Figure()
     for mode, shapes in all_shapes.items():
@@ -492,7 +529,7 @@ def update_graph(primary_var, secondary_var, start_date, end_date, modes):
                 title=var,
                 overlaying='y',
                 side='right',
-                position=1
+                position=.95 - i * 0.05
             )
         })
 
@@ -506,8 +543,7 @@ def update_graph(primary_var, secondary_var, start_date, end_date, modes):
         )
     )
 
-    title='Time Series of Custom Variables'
-
+    # Prepare the missing data text
     def count_missing_values(df, column):
         return df[column].isna().sum()
 
@@ -516,7 +552,9 @@ def update_graph(primary_var, secondary_var, start_date, end_date, modes):
     fixed_missing_data = ", ".join([f"{var}: {count_missing_values(filtered_df, var)}" for var in fixed_variables])
     custom_missing_data = ", ".join([f"{var}: {count_missing_values(filtered_df, var)}" for var in custom_variables])
 
-    return fig1, fig2, fig3, energy_sum_text, primary_missing_data + "; " + secondary_missing_data, fixed_missing_data, custom_missing_data, fig4  
+    return fig1, fig2, fig3, energy_sum_text, primary_missing_data + "; " + secondary_missing_data, fixed_missing_data, custom_missing_data, fig4
+
+
 @app.callback(
     Output('hot-tank-t2-t3-histogram', 'figure'),
     [Input('date-picker-range', 'start_date'),
@@ -569,6 +607,46 @@ def update_water_draw_histogram(start_date, end_date):
     fig.update_layout(width=400, height=300)
     return fig
 
+@app.callback(
+    Output('scatter-plot', 'figure'),
+    [Input('date-picker-range', 'start_date'),
+     Input('date-picker-range', 'end_date')]
+)
+def update_graph(start_date, end_date):
+    # Convert start and end dates to datetime
+    start_date = pd.to_datetime(start_date)
+    end_date = pd.to_datetime(end_date)
+    
+    # Create a new column to track whether the data point is within the selected date range
+    filtered_df['color'] = filtered_df.apply(
+        lambda row: 'red' if start_date <= row['idx_Mid_Cycle'] <= end_date else row['Year'], axis=1
+    )
+    
+    # Create the scatter plot
+    fig = px.scatter(
+        filtered_df,
+        x='T_Outdoor_ecobee_F',
+        y='COP_Steady_State',
+        color='color',
+        color_discrete_map={
+            '2022': 'greenyellow', '2023': 'lightblue', '2024': 'khaki', 'red': 'red'
+        },
+        labels={'T_Outdoor_ecobee_F': 'T_Outdoor_ecobee_F', 'COP_Steady_State': 'COP Steady State'},
+        title='COP Steady State vs Outdoor Temperature by Year'
+    )
+    
+    # Add grid and customize layout
+    fig.update_layout(
+        xaxis_title='T_Outdoor_ecobee_F',
+        yaxis_title='COP Steady State',
+        legend_title='Year',
+        template='plotly_white'
+    )
+    
+    # Update marker size
+    fig.update_traces(marker=dict(size=8))  # Adjust the size value as needed
+
+    return fig
 
 if __name__ == '__main__':
     app.run_server(debug=True)

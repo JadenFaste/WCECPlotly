@@ -1,50 +1,125 @@
 import pandas as pd
-import matplotlib.pyplot as plt
+import plotly.graph_objs as go
+from plotly.subplots import make_subplots
+import dash
+from dash import dcc, html
+from dash.dependencies import Input, Output
+import os
 
-# Frontier cycle data
-path_cycle_2022 = r"C:\Users\cdgreen\OneDrive - University of California, Davis\Documents\Villara_MFHP\dashboard\tango_site\data\Villara 3 Function Cycle Data - 2022.csv"
-path_cycle_2023 = r"C:\Users\cdgreen\OneDrive - University of California, Davis\Documents\Villara_MFHP\dashboard\tango_site\data\Villara 3 Function Cycle Data - 2023.csv"
-path_cycle_2024 = r"C:\Users\cdgreen\OneDrive - University of California, Davis\Documents\Villara_MFHP\dashboard\tango_site\data\2024-08-12 Villara 3 Function Cycle Data - 2024.csv"
+path = r'C:\Users\bober\OneDrive\Documents\GitHub\WCECPlotly'
+os.chdir(path)
 
-df_cycle_2022 = pd.read_csv(path_cycle_2022)
-df_cycle_2023 = pd.read_csv(path_cycle_2023)
-df_cycle_2024 = pd.read_csv(path_cycle_2024)
+# Load the updated dataset
+cycle_data_updated = pd.read_csv('cycle_data_updated.csv')
 
-df_cycle_2022.index = pd.to_datetime(df_cycle_2022['idx_Mid_Cycle'])
-df_cycle_2023.index = pd.to_datetime(df_cycle_2023['idx_Mid_Cycle'])
-df_cycle_2024.index = pd.to_datetime(df_cycle_2024['idx_Mid_Cycle'])
+# Convert index to datetime
+cycle_data_updated['idx_Mid_Cycle'] = pd.to_datetime(cycle_data_updated['idx_Mid_Cycle'])
 
-# Plot COP vs outdoor temperature
-def ac_mode_cop_plot(df_cycle_2022,df_cycle_2023,df_cycle_2024,latest_begin,latest_end):
-
-    df_cycle_2022 = df_cycle_2022[df_cycle_2022['AC_Mode'] == 1]
-    df_cycle_2023 = df_cycle_2023[df_cycle_2023['AC_Mode'] == 1]
-    df_cycle_2024 = df_cycle_2024[df_cycle_2024['AC_Mode'] == 1]
+def ac_mode_cop_plot_plotly(cycle_data_updated, latest_begin, latest_end):
+    # Filter data
+    filtered_data = cycle_data_updated[
+        (cycle_data_updated['AC_Mode'] == 1) & 
+        (cycle_data_updated['AC_and_DHW_Mode'] == 0)
+    ]
     
-    df_cycle_2022 = df_cycle_2022[df_cycle_2022['AC_and_DHW_Mode'] == 0]
-    df_cycle_2023 = df_cycle_2023[df_cycle_2023['AC_and_DHW_Mode'] == 0]
-    df_cycle_2024 = df_cycle_2024[df_cycle_2024['AC_and_DHW_Mode'] == 0]
+    filtered_data_2022 = filtered_data[filtered_data['idx_Mid_Cycle'].dt.year == 2022]
+    filtered_data_2023 = filtered_data[filtered_data['idx_Mid_Cycle'].dt.year == 2023]
+    filtered_data_2024 = filtered_data[filtered_data['idx_Mid_Cycle'].dt.year == 2024]
     
-    df_cycle_2024 = df_cycle_2024.loc['2024-07-19':]
-    df_cycle_latest = df_cycle_2024.loc[latest_begin:latest_end]
+    filtered_data_2024 = filtered_data_2024[filtered_data_2024['idx_Mid_Cycle'] >= '2024-07-19']
+    filtered_data_latest = filtered_data_2024[
+        (filtered_data_2024['idx_Mid_Cycle'] >= latest_begin) & 
+        (filtered_data_2024['idx_Mid_Cycle'] <= latest_end)
+    ]
     
-    plt.figure()
-    plt.scatter(df_cycle_2022['T_Outdoor_ecobee_F'],df_cycle_2022['COP_Steady_State'],label = '2022',alpha=0.5)
-    plt.scatter(df_cycle_2023['T_Outdoor_ecobee_F'],df_cycle_2023['COP_Steady_State'], label = '2023',alpha=0.5)
-    plt.scatter(df_cycle_2024['T_Outdoor_ecobee_F'],df_cycle_2024['COP_Steady_State'], label = '2024',alpha=0.5)
-    plt.scatter(df_cycle_latest['T_Outdoor_ecobee_F'],df_cycle_latest['COP_Steady_State'], label = 'Current Selection',edgecolor='black')
-    
-    plt.legend()
-    plt.grid()
-    plt.ylim([0,6])
-    plt.ylabel('Steady State COP')
-    plt.xlabel('Outdoor Air Temperature [°F]')
-    plt.title('AC Mode')
+    # Create Plotly figure
+    fig = go.Figure()
 
+    # Add scatter traces for each year
+    fig.add_trace(go.Scatter(
+        x=filtered_data_2022['T_Outdoor_ecobee_F'],
+        y=filtered_data_2022['COP_Steady_State'],
+        mode='markers',
+        name='2022',
+        marker=dict(opacity=0.5)
+    ))
+
+    fig.add_trace(go.Scatter(
+        x=filtered_data_2023['T_Outdoor_ecobee_F'],
+        y=filtered_data_2023['COP_Steady_State'],
+        mode='markers',
+        name='2023',
+        marker=dict(opacity=0.5)
+    ))
+
+    fig.add_trace(go.Scatter(
+        x=filtered_data_2024['T_Outdoor_ecobee_F'],
+        y=filtered_data_2024['COP_Steady_State'],
+        mode='markers',
+        name='2024',
+        marker=dict(opacity=0.5)
+    ))
+
+    # Current Selection
+    fig.add_trace(go.Scatter(
+        x=filtered_data_latest['T_Outdoor_ecobee_F'],
+        y=filtered_data_latest['COP_Steady_State'],
+        mode='markers',
+        name='Current Selection',
+        marker=dict(color='black', size=10, line=dict(width=2, color='DarkSlateGrey'))
+    ))
+
+    # Update layout
+    fig.update_layout(
+        title='AC Mode',
+        xaxis_title='Outdoor Air Temperature [°F]',
+        yaxis_title='Steady State COP',
+        yaxis=dict(range=[0, 6]),
+        legend=dict(title='Year'),
+        template='plotly_white',
+        hovermode='closest'
+    )
+
+    return fig
+
+
+# Initialize Dash app
+app = dash.Dash(__name__)
+app.title = "AC Mode COP Plot"
+
+# Define the layout
+app.layout = html.Div([
+    html.H1("AC Mode COP Analysis"),
     
+    # Date Picker for selecting the latest_begin and latest_end
+    html.Div([
+        html.Label("Select Date Range for Current Selection:"),
+        dcc.DatePickerRange(
+            id='date-picker-range',
+            min_date_allowed=cycle_data_updated['idx_Mid_Cycle'].min().date(),
+            max_date_allowed=cycle_data_updated['idx_Mid_Cycle'].max().date(),
+            start_date='2024-08-10',
+            end_date='2024-08-11'
+        )
+    ], style={'margin': '20px'}),
+    
+    # Placeholder for the Plotly graph
+    dcc.Graph(
+        id='cop-plot'
+    )
+])
+
+# Define callback to update the plot based on selected dates
+@app.callback(
+    Output('cop-plot', 'figure'),
+    [Input('date-picker-range', 'start_date'),
+     Input('date-picker-range', 'end_date')]
+)
+def update_cop_plot(start_date, end_date):
+    # Generate the plotly figure with the selected dates
+    fig = ac_mode_cop_plot_plotly(cycle_data_updated, start_date, end_date)
+    return fig
+
+# Run the app
 if __name__ == '__main__':
-
-    latest_begin = '2024-08-10'
-    latest_end = '2024-08-11'
-    
-    ac_mode_cop_plot(df_cycle_2022,df_cycle_2023,df_cycle_2024,latest_begin,latest_end)    
+    app.run_server(debug=True)
