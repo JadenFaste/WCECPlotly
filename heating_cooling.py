@@ -154,6 +154,7 @@ fig_gantt.update_layout(
 )
 
 # Create the Dash app
+#######################################################################################################
 app = dash.Dash(__name__)
 
 # Define the layout
@@ -270,7 +271,8 @@ app.layout = html.Div([
     html.Hr(),
     dcc.Graph(id='scatter-plot')
 ])
-
+###############################################################################################
+# dash app endings
 @app.callback(
     [Output('graph', 'figure'),
      Output('equation', 'children')],
@@ -523,13 +525,42 @@ def update_graph(primary_var, secondary_var, start_date, end_date, modes):
     fig4.update_layout(
         yaxis=dict(title="Temperature (F)"),
     )
+# Number of non-temperature variables
+    n_non_temp_vars = len(non_temperature_variables_fig4)
+
+# Adjust the x-axis domain to leave less space on the right for extra y-axes
+    fig4.update_layout(
+        xaxis=dict(domain=[0.0, 0.95])  # Increased domain to 90% of width
+)
+
+# Adjust the right margin to prevent clipping of y-axis labels
+    fig4.update_layout(
+        margin=dict(r=50)  # Adjusted right margin as needed
+    )
+
+# Calculate starting position and available space
+    start_pos = fig4.layout.xaxis.domain[1] + 0.01  # Slightly right of the plot area
+    end_pos = 1.0 - 0.01  # Leave a small margin on the far right
+    available_space = end_pos - start_pos
+
+# Decrease delta_pos to reduce gaps between y-axes
+    delta_pos = 0.03  # Smaller gap between y-axes
+
+# Adjust delta_pos if necessary to ensure all y-axes fit within the figure
+    max_required_space = delta_pos * (n_non_temp_vars - 1)
+    if max_required_space > available_space:
+        delta_pos = available_space / (n_non_temp_vars - 1)
+
+# Update layout for each additional y-axis
     for i, var in enumerate(non_temperature_variables_fig4):
+        position = start_pos + i * delta_pos
         fig4.update_layout(**{
             f'yaxis{i + 2}': dict(
                 title=var,
+                anchor='free',
                 overlaying='y',
                 side='right',
-                position=.95 - i * 0.05
+                position=position
             )
         })
 
