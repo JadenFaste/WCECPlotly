@@ -56,6 +56,7 @@ available_variables = df.columns.drop('Date')
 binary_columns = ['AC_Mode', 'AC_and_DHW_Mode', 'Space_Heat_Mode', 'Water_Heating_Mode', 'Defrost_Mode']
 
 mode_colors = {
+    'Controller_AC_Mode': 'CadetBlue',
     'Controller_AC_and_DHW_Mode': 'LightSkyBlue',
     'Controller_Defrost_Mode': 'LightCoral',
     'Controller_Space_Heat_Mode': 'LightGreen',
@@ -161,6 +162,16 @@ app = dash.Dash(__name__)
 app.layout = html.Div([
     html.H1("Time Series Dashboard"),
 
+    html.Div([
+        html.Label("Select Date Range:"),
+        dcc.DatePickerRange(
+            id='date-picker-range',
+            start_date='2024-08-17',  
+            end_date='2024-08-18',
+            display_format='MM/DD/YYYY'
+        )
+    ], style={'margin-top': '20px', 'margin-bottom': '20px'}),
+
     # Dropdown for selecting the primary variable
     html.Div([
         html.Label("Select Primary Variable:"),
@@ -181,23 +192,13 @@ app.layout = html.Div([
         ),
     ]),
 
-    # DatePickerRange to filter by date range
-    html.Div([
-        html.Label("Select Date Range:"),
-        dcc.DatePickerRange(
-            id='date-picker-range',
-            start_date='2024-08-17',  
-            end_date='2024-08-18',
-            display_format='MM/DD/YYYY'
-        )
-    ], style={'margin-top': '20px', 'margin-bottom': '20px'}),
-
     # Checkboxes for binary columns
     html.Div([
         html.Label("Select Modes to Highlight:"),
         dcc.Checklist(
             id='mode-selector',
             options=[
+                {'label': 'AC Mode', 'value': 'Controller_AC_Mode'},
                 {'label': 'AC and DHW Mode', 'value': 'Controller_AC_and_DHW_Mode'},
                 {'label': 'Defrost Mode', 'value': 'Controller_Defrost_Mode'},
                 {'label': 'Space Heat Mode', 'value': 'Controller_Space_Heat_Mode'},
@@ -208,7 +209,10 @@ app.layout = html.Div([
         ),
     ], style={'margin-top': '20px', 'margin-bottom': '20px'}),
 
+    html.Hr(),
+
     # line chart
+    html.H4("Line plot that charts primary and secondary variables"),
     dcc.Graph(id='line-plot'),
     html.Div(id='line-plot-missing-data'),
 
@@ -216,6 +220,7 @@ app.layout = html.Div([
     html.Hr(),
 
     # Second Graph
+    html.H4("Fixed plot for power draw, water flow, and temperature"),
     dcc.Graph(id='fixed-variables-plot'),
     html.Div(id='fixed-variables-missing-data'),
 
@@ -223,12 +228,16 @@ app.layout = html.Div([
     html.Hr(),
 
     # Third Graph
+    html.H4("Fixed plot for power, cooling variables, and temperature"),
     dcc.Graph(id='custom-variables-plot'),
     html.Div(id='custom-variables-missing-data'),
 
+    html.Hr(),
+    html.H4("Fixed plot for power, heating variables, and temperature"),
     dcc.Graph(id='duplicate-custom-variables-plot'),
 
     html.Hr(),  # Separator
+    html.H4("Histogram for distribution of variables"),
     html.Div([
         html.Div([dcc.Graph(id='hot-tank-t2-t3-histogram')],
                  style={'width': '500px', 'display': 'inline-block', 'margin': '0 5px'}),
@@ -266,9 +275,11 @@ app.layout = html.Div([
     html.Div(id='equation'),
 
     html.Hr(),
+    html.H4("Gantt Chart for project timeline"),
     dcc.Graph(id='gantt-chart', figure=fig_gantt),
     
     html.Hr(),
+    html.H4("Scatterplot for COP vs. Outdoor Temperature grouped by year, with current date highlighted"),
     dcc.Graph(id='scatter-plot')
 ])
 ###############################################################################################
@@ -396,7 +407,6 @@ def update_graph(primary_var, secondary_var, start_date, end_date, modes):
             fig1.add_shape(shape)
 
     fig1.update_layout(
-        title=f'Time Series of {primary_var} & {secondary_var}',
         legend=dict(
             orientation='h',
             yanchor='bottom',
@@ -434,13 +444,42 @@ def update_graph(primary_var, secondary_var, start_date, end_date, modes):
     fig2.update_layout(
         yaxis=dict(title="Temperature (F)"),
     )
+# Number of non-temperature variables
+    n_non_temp_vars = len(non_temperature_variables)
+
+# Adjust the x-axis domain to leave less space on the right for extra y-axes
+    fig2.update_layout(
+        xaxis=dict(domain=[0.0, 0.92])  # Increased domain to 90% of width
+)
+
+# Adjust the right margin to prevent clipping of y-axis labels
+    fig2.update_layout(
+        margin=dict(r=100)  # Adjusted right margin as needed
+    )
+
+# Calculate starting position and available space
+    start_pos = fig2.layout.xaxis.domain[1] + 0.01  # Slightly right of the plot area
+    end_pos = 1.0 - 0.000005  # Leave a small margin on the far right
+    available_space = end_pos - start_pos
+
+# Decrease delta_pos to reduce gaps between y-axes
+    delta_pos = .5  # Smaller gap between y-axes
+
+# Adjust delta_pos if necessary to ensure all y-axes fit within the figure
+    max_required_space = delta_pos * (n_non_temp_vars - 1)
+    if max_required_space > available_space:
+        delta_pos = available_space / (n_non_temp_vars - 1)
+
+# Update layout for each additional y-axis
     for i, var in enumerate(non_temperature_variables):
+        position = start_pos + i * delta_pos
         fig2.update_layout(**{
             f'yaxis{i + 2}': dict(
                 title=var,
+                anchor='free',
                 overlaying='y',
                 side='right',
-                position=.95 + i * 0.05
+                position=position
             )
         })
 
@@ -456,7 +495,7 @@ def update_graph(primary_var, secondary_var, start_date, end_date, modes):
 
     # Figure 3: Custom Variables Plot (Including TP_Capacity_Cooling_Btuh)
     custom_variables = ["EP_Total_HVAC_Power_W", "T_Outdoor_ecobee_F", "T_CoolSetpoint_F", "T_Thermostat_F", "TP_Capacity_Cooling_Btuh"]
-    temperature_variables_fig3 = ["T_Outdoor_ecobee_F", "T_HeatSetpoint_F", "T_Thermostat_F"]
+    temperature_variables_fig3 = ["T_Outdoor_ecobee_F", "T_CoolSetpoint_F", "T_Thermostat_F"]
     colors_fig3 = ['blue', 'red', 'green', 'orange', 'purple']
 
     fig3 = go.Figure()
@@ -478,13 +517,42 @@ def update_graph(primary_var, secondary_var, start_date, end_date, modes):
     fig3.update_layout(
         yaxis=dict(title="Temperature (F)"),
     )
+# Number of non-temperature variables
+    n_non_temp_vars = len(non_temperature_variables_fig3)
+
+# Adjust the x-axis domain to leave less space on the right for extra y-axes
+    fig3.update_layout(
+        xaxis=dict(domain=[0.0, 0.92])  # Increased domain to 90% of width
+)
+
+# Adjust the right margin to prevent clipping of y-axis labels
+    fig3.update_layout(
+        margin=dict(r=100)  # Adjusted right margin as needed
+    )
+
+# Calculate starting position and available space
+    start_pos = fig3.layout.xaxis.domain[1] + 0.01  # Slightly right of the plot area
+    end_pos = 1.0 - 0.000005  # Leave a small margin on the far right
+    available_space = end_pos - start_pos
+
+# Decrease delta_pos to reduce gaps between y-axes
+    delta_pos = .5  # Smaller gap between y-axes
+
+# Adjust delta_pos if necessary to ensure all y-axes fit within the figure
+    max_required_space = delta_pos * (n_non_temp_vars - 1)
+    if max_required_space > available_space:
+        delta_pos = available_space / (n_non_temp_vars - 1)
+
+# Update layout for each additional y-axis
     for i, var in enumerate(non_temperature_variables_fig3):
+        position = start_pos + i * delta_pos
         fig3.update_layout(**{
             f'yaxis{i + 2}': dict(
                 title=var,
+                anchor='free',
                 overlaying='y',
                 side='right',
-                position=.95 - i * 0.05
+                position=position
             )
         }) 
 
@@ -530,21 +598,21 @@ def update_graph(primary_var, secondary_var, start_date, end_date, modes):
 
 # Adjust the x-axis domain to leave less space on the right for extra y-axes
     fig4.update_layout(
-        xaxis=dict(domain=[0.0, 0.95])  # Increased domain to 90% of width
+        xaxis=dict(domain=[0.0, 0.92])  # Increased domain to 90% of width
 )
 
 # Adjust the right margin to prevent clipping of y-axis labels
     fig4.update_layout(
-        margin=dict(r=50)  # Adjusted right margin as needed
+        margin=dict(r=100)  # Adjusted right margin as needed
     )
 
 # Calculate starting position and available space
     start_pos = fig4.layout.xaxis.domain[1] + 0.01  # Slightly right of the plot area
-    end_pos = 1.0 - 0.01  # Leave a small margin on the far right
+    end_pos = 1.0 - 0.000005  # Leave a small margin on the far right
     available_space = end_pos - start_pos
 
 # Decrease delta_pos to reduce gaps between y-axes
-    delta_pos = 0.03  # Smaller gap between y-axes
+    delta_pos = .5  # Smaller gap between y-axes
 
 # Adjust delta_pos if necessary to ensure all y-axes fit within the figure
     max_required_space = delta_pos * (n_non_temp_vars - 1)
