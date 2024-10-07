@@ -6,6 +6,7 @@ import os
 path = r'C:\Users\bober\OneDrive\Documents\GitHub\WCECPlotly'
 os.chdir(path)
 
+
 # Set latest date range
 latest_begin = '2024-09-10'
 latest_end = '2024-09-26'

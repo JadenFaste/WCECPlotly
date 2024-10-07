@@ -212,7 +212,7 @@ app.layout = html.Div([
     html.Hr(),
 
     # line chart
-    html.H4("Line plot that charts primary and secondary variables"),
+    html.H4("Choose two variables to plot"),
     dcc.Graph(id='line-plot'),
     html.Div(id='line-plot-missing-data'),
 
@@ -220,7 +220,7 @@ app.layout = html.Div([
     html.Hr(),
 
     # Second Graph
-    html.H4("Fixed plot for power draw, water flow, and temperature"),
+    html.H4("Fixed plot for water heater operations"),
     dcc.Graph(id='fixed-variables-plot'),
     html.Div(id='fixed-variables-missing-data'),
 
@@ -228,16 +228,16 @@ app.layout = html.Div([
     html.Hr(),
 
     # Third Graph
-    html.H4("Fixed plot for power, cooling variables, and temperature"),
+    html.H4("Fixed plot for HVAC cooling operations"),
     dcc.Graph(id='custom-variables-plot'),
     html.Div(id='custom-variables-missing-data'),
 
     html.Hr(),
-    html.H4("Fixed plot for power, heating variables, and temperature"),
+    html.H4("Fixed plot for HVAC heating operations"),
     dcc.Graph(id='duplicate-custom-variables-plot'),
 
     html.Hr(),  # Separator
-    html.H4("Histogram for distribution of variables"),
+    html.H4("Histogram for key variables"),
     html.Div([
         html.Div([dcc.Graph(id='hot-tank-t2-t3-histogram')],
                  style={'width': '500px', 'display': 'inline-block', 'margin': '0 5px'}),
