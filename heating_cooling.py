@@ -159,7 +159,7 @@ def create_static_histogram(filtered_data, x_column, title, label):
     
     # Update layout to set the title font size
     fig.update_layout(
-        title_font=dict(size=10)  # Adjust the font size as needed
+        title_font=dict(size=10)  # Adjust font
     )
     
     return fig
@@ -851,7 +851,7 @@ def update_graph(start_date, end_date):
     [Input('date-picker-range', 'start_date'),
      Input('date-picker-range', 'end_date')]
 )
-def update_figures(start_date, end_date):
+def update_static_figures(start_date, end_date):
     # Filter data based on the selected date range
     mask = (data['idx_Cycle_Start'] >= start_date) & (data['idx_Cycle_Start'] <= end_date)
     date_filtered_data = data[mask]
